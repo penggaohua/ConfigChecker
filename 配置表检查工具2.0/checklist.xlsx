@@ -1,0 +1,5 @@
+table_name	table_column	action	args
+AudioConfig.xlsx	id;fileName;description	check_repeat	
+AudioConfig.xlsx	id	check_null	
+AudioConfig.xlsx	fileName	check_regex	common_.*
+AudioConfig.xlsx	reward	check_reference	BuffConfig.xlsx;id
