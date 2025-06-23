@@ -1,7 +1,6 @@
 # ConfigChecker3.0
 用于检查策划的配置表，中央区域可输出结果，点击“导出”可以导出结果到配置表根目录下。   
 ![图片描述](https://github.com/penggaohua/ConfigChecker/blob/main/configchecker(1).jpg)
-![图片描述](https://github.com/penggaohua/20Tank1.0/blob/main/Assets/lRvmdkbmFrtoirw.jpg)
 1.非空检测  
 　　检查某一列或某一整页或整个配置表所有单元格是否为空    
 　　1.1 低于表头的行不检查     
