@@ -1,14 +1,18 @@
 import shutil
 import sys
-import time
+
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPlainTextEdit, QVBoxLayout, QWidget, QPushButton, QLabel, \
-    QLineEdit, QHBoxLayout
+    QLineEdit, QHBoxLayout, QComboBox
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from ConfigCheckerQuick import *
+from PyCharmMiscProject.ConfigCheckerQuick import *
+from PyCharmMiscProject.ConfigCheckerRange import ConfigCheckerRange
+from PyCharmMiscProject.ConfigCheckerMaxLength import ConfigCheckerMaxLength
 
-from PyCharmMiscProject.ConfigCheckerQuickClass import ConfigCheckerQuickClass
+from PyCharmMiscProject.ConfigCheckerNone import ConfigCheckerNone
+from PyCharmMiscProject.ConfigCheckerReference import check_reference_split
+from PyCharmMiscProject.ConfigCheckerUniqueness import ConfigCheckerUniqueness
 
 
 class TextLoader(QThread):
@@ -45,16 +49,22 @@ class MainWindow(QMainWindow):
         self.input.setPlaceholderText(r"请输入配置表路径:")
         self.input.setText(r"d:\Config\竞技场神兽配置表.xlsx")
 
-    #    self.label_table_name= QLabel("表名：")
-    #    self.input_table_name = QLineEdit()
-       # self.input_table_name.setGeometry(10,10,10,10)
+        #self.label_table_name= QLabel("表名：")
+        # self.input_table_name = QLineEdit()
+        # self.input_table_name.setGeometry(10,10,10,10)
         self.label_sheet_name= QLabel("页名：")
         self.input_sheet_name = QLineEdit()
-        self.input_sheet_name.setText("HCZBShenShou")
+        self.input_sheet_name.setText("WKshenshou")
 
         self.label_column_name= QLabel("列字母：")
         self.input_column_name = QLineEdit()
+        self.input_column_name.setText("A")
         self.input_column_name.setPlaceholderText("请输入列字母，必须是大写，不要有空格")
+        #创建下拉框
+        self.combobox = QComboBox()
+        self.combobox.addItems(["为空", "唯一性"])
+
+
         #创建按钮
         self.button_check_single_column = QPushButton("单列检查", self)
       #  self.button_check_single_column.clicked.connect(lambda :self.check_single_column(fun))
@@ -70,6 +80,32 @@ class MainWindow(QMainWindow):
         # 创建文本编辑器
         self.text_edit = QPlainTextEdit()
         self.text_edit.setReadOnly(True)  # 设置为只读
+
+
+        #范围检查
+        self.label_min_value = QLabel("最小值（包含）")
+        self.input_min_value = QLineEdit()
+        self.input_min_value.setText('0')
+        self.input_min_value.setPlaceholderText("输入最小值")
+    #self.input_min_value.setFixedWidth(80)
+        self.label_max_value= QLabel("最大值（包含）")
+        self.input_max_value = QLineEdit()
+        self.input_max_value.setText('100')
+        self.input_max_value.setPlaceholderText("输入最大值")
+        #self.input_max_value.setFixedWidth(80)
+      #  self.input_max_value.setFixedWidth(60)
+
+        self.button_check_range = QPushButton("范围检查", self)
+        self.button_check_range.setFixedWidth(300)
+        self.button_check_range.clicked.connect(self.check_range_column)
+
+        #长度检查
+        self.label_max_length = QLabel("单元格内容最大长度（包含）")
+        self.input_max_length = QLineEdit()
+        self.input_max_length.setFixedWidth(600)
+        self.button_max_length = QPushButton("最大长度检查", self)
+        self.button_max_length.clicked.connect(self.check_max_length)
+
 
         # 创建布局
         layout = QVBoxLayout()
@@ -87,12 +123,55 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.text_edit)
 
         bottom_layout = QHBoxLayout()
+        bottom_layout.addWidget(self.combobox)
+
         bottom_layout.addWidget(self.button_check_single_column)
         bottom_layout.addWidget(self.button_check_sheet)
         bottom_layout.addWidget(self.button_check_table)
         bottom_layout.addWidget(self.button_output_result)
 
+        #范围检查布局
+        bottom_layout_range = QHBoxLayout()
+        bottom_layout_range.addWidget(self.label_min_value)
+        bottom_layout_range.addWidget(self.input_min_value)
+        bottom_layout_range.addWidget(self.label_max_value)
+        bottom_layout_range.addWidget(self.input_max_value)
+        bottom_layout_range.addWidget(self.button_check_range)
+
+        #长度检查布局
+        bottom_layout_length=QHBoxLayout()
+        bottom_layout_length.addWidget(self.label_max_length)
+        bottom_layout_length.addWidget(self.input_max_length)
+        bottom_layout_length.addWidget(self.button_max_length)
+
+        #索引检查布局
+        self.input_reference_target_path = QLineEdit()
+        self.input_reference_target_path.setPlaceholderText("目标表格路径")
+        self.input_reference_target_sheet = QLineEdit()
+        self.input_reference_target_sheet.setPlaceholderText("目标表格页名")
+        self.input_reference_target_sheet.setFixedWidth(100)
+
+        self.input_reference_target_column = QLineEdit()
+        self.input_reference_target_column.setPlaceholderText("目标表格列字母")
+        self.input_reference_target_column.setFixedWidth(100)
+        self.button_reference_check = QPushButton("索引检查", self)
+        self.button_reference_check.clicked.connect(self.check_reference )
+
+        self.button_reference_check.setFixedWidth(300)
+
+        bottom_layout_refer = QHBoxLayout()
+        bottom_layout_refer.addWidget(self.input_reference_target_path)
+        bottom_layout_refer.addWidget(self.input_reference_target_sheet)
+        bottom_layout_refer.addWidget(self.input_reference_target_column)
+        bottom_layout_refer.addWidget(self.button_reference_check)
+
+
+
+
         layout.addLayout(bottom_layout)
+        layout.addLayout(bottom_layout_range)
+        layout.addLayout(bottom_layout_length)
+        layout.addLayout(bottom_layout_refer)
 
 
         container = QWidget()
@@ -136,10 +215,24 @@ class MainWindow(QMainWindow):
         print(output_path)
         shutil.copy("temp.log", output_path)
 
+
+    def get_check_type(self):
+        check_type = self.combobox.currentText()
+        print(check_type)
+        index = self.combobox.currentIndex()
+        type_list = [ConfigCheckerNone,ConfigCheckerUniqueness]
+        return type_list[index]
+
+
     #--------检查方法-------------------------------------------
 
     def check_single_column(self):
+        #根据选项来执行具体的检查
+
         print("单列检测")
+        func = self.get_check_type()
+
+
         path=self.input.text()
         sheet_name=self.input_sheet_name.text()
         column_name=self.input_column_name.text()
@@ -148,9 +241,9 @@ class MainWindow(QMainWindow):
             self.show_text("error ------->   列字母未输入")
             return
 
-        self.configchecker.file_path=path
-        res  =  self.configchecker.check_sheet_or_column(sheet_name,column_name)
-        out_put = res[0] + str(res[1])
+        self.configchecker = func(path)
+        res  =  self.configchecker.check_column(sheet_name,column_name)
+        out_put =str(res)
         with open("temp.log", 'w', encoding='utf-8') as f:
             f.write(str(out_put))
         self.show_text(out_put)
@@ -158,12 +251,13 @@ class MainWindow(QMainWindow):
 
     def check_sheet(self):
         print("单页检测")
+        func = self.get_check_type()
+
         path = self.input.text()
         sheet_name = self.input_sheet_name.text()
-
-        self.configchecker.file_path = path
-        res = self.configchecker.check_sheet_or_column(sheet_name)
-        out_put = res[0] + str(res[1])
+        self.configchecker  = func(path)
+        res = self.configchecker.check_sheet(sheet_name)
+        out_put =str(res)
         with open("temp.log", 'w', encoding='utf-8') as f:
             f.write(str(out_put))
         self.show_text(out_put)
@@ -172,15 +266,75 @@ class MainWindow(QMainWindow):
 
     def check_table(self):
         path = self.input.text()
-        self.configchecker.file_path = path
-        res =self.configchecker.check_table_parallel()
+        func = self.get_check_type()
+        self.configchecker  = func(path)
+        res =self.configchecker.check_table()
         with open("temp.log", 'w', encoding='utf-8') as f:
+
             f.write(str(res))
         print("写入完毕")
         self.show_text_from_file()
 
+    def check_range_column(self):
+        try:
+            print("check range column")
+            min = self.input_min_value.text()
+            min_value =float(min)
+            max = self.input_max_value.text()
+            max_value =float(max)
+            sheet_name = self.input_sheet_name.text()
+            column_letter = self.input_column_name.text()
+            path = self.input.text()
+            checker = ConfigCheckerRange(path)
+            res = checker.check_range(sheet_name,column_letter,min_value,max_value)
+            print(res)
+
+            with open("temp.log", 'w', encoding='utf-8') as f:
+                f.write("范围检查:\n")
+                f.write(str(res))
+            self.show_text(str(res))
+        except Exception as e  :
+            print(e)
 
 
+
+    def check_max_length(self):
+        try:
+            print("check_max_length")
+            sheet_name = self.input_sheet_name.text()
+            column_letter = self.input_column_name.text()
+            path = self.input.text()
+            max_length = self.input_max_length.text()
+            print(max_length)
+            checker = ConfigCheckerMaxLength(path)
+            res = checker.check_max_length(sheet_name,column_letter,float(max_length))
+            with open("temp.log", 'w', encoding='utf-8') as f:
+                f.write("最大长度检查:\n")
+                f.write(str(res))
+            self.show_text(str(res))
+        except Exception as e :
+            print(e)
+
+    def check_reference(self):
+        try:
+            print("check reference")
+            #源表格
+            source_path = self.input.text()
+            source_sheet_name = self.input_sheet_name.text()
+            source_column_name = self.input_column_name.text()
+            #目标表格
+            target_path = self.input_reference_target_path.text()
+            target_sheet_name = self.input_reference_target_sheet.text()
+            target_column_name = self.input_reference_target_column.text()
+
+            res = check_reference_split(source_path,source_sheet_name,source_column_name,target_path,target_sheet_name,target_column_name)
+
+            with open("temp.log", 'w', encoding='utf-8') as f:
+                    f.write("索引检查:\n")
+                    f.write(str(res))
+            self.show_text(str(res))
+        except Exception as e :
+            print(e)
 
 
 if __name__ == "__main__":
@@ -200,11 +354,11 @@ if __name__ == "__main__":
     # print(res)
     # with open("result2.log", 'w', encoding='utf-8') as f:
     #     f.write(str(res))
-    configCheckerQuickClass= ConfigCheckerQuickClass(file_path)
+    configChecker= ConfigCheckerNone(file_path)
 
     app = QApplication(sys.argv)
   #  window = MainWindow(check_table_parallel)
-    window = MainWindow(configCheckerQuickClass)
+    window = MainWindow(configChecker)
     window.show()
     print(time.time() - start)
     sys.exit(app.exec())
